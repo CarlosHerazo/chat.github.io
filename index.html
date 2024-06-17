@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meli</title>
+  </head>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+        sans-serif;
+      background-color: #202123;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      height: 100vh; /* Use viewport height */
+      display: flex;
+      flex-direction: column;
+    }
+
+    main {
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      background-color: #2a2a2b;
+      border-radius: 10px;
+      flex: 1;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      margin-bottom: 16px;
+    }
+
+    ul {
+      display: flex;
+      flex-direction: column;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px;
+    }
+
+    .message span {
+      width: 36px;
+      height: 36px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      color: #fff;
+    }
+
+    .message p {
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin: 0;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+    }
+
+    .message.bot span {
+      background-color: #3a7bd5; /* Cambia a un azul brillante */
+      background-image: linear-gradient(
+        45deg,
+        #3a7bd5,
+        #00d2ff
+      ); /* Gradiente para un mejor efecto */
+    }
+
+    .message.bot p {
+      background-color: #3a3b3c;
+      color: #c9c9c9;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message.user span {
+      background-color: #8e44ad; /* Cambia a un púrpura vibrante */
+      background-image: linear-gradient(
+        45deg,
+        #8e44ad,
+        #c39bd3
+      ); /* Gradiente para un mejor efecto */
+    }
+
+    .message.user p {
+      background-color: #414141;
+      color: #c9c9c9;
+    }
+
+    /* Estilos para el formulario de entrada */
+    form {
+      display: flex;
+      padding: 10px;
+      background-color: #1f1f1f;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    form input {
+      flex: 1;
+      border: 1px solid #333;
+      border-radius: 5px;
+      padding: 10px;
+      margin-right: 10px;
+      font-size: 16px;
+      background-color: #2a2a2b;
+      color: #eaeaea;
+      box-sizing: border-box;
+    }
+
+    form input::placeholder {
+      color: #888; /* Color placeholder */
+    }
+
+    form button {
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      background-color: #0b5ed7; /* Color azul principal */
+      background-image: linear-gradient(
+        45deg,
+        #0b5ed7,
+        #60a9f6
+      ); /* Gradiente para efecto brillante */
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+
+      & [disabled] {
+        background: #ccc;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+    }
+
+    form button:hover {
+      background-color: #4a90e2; /* Azul más claro al pasar el ratón */
+      background-image: linear-gradient(
+        45deg,
+        #4a90e2,
+        #87cefa
+      ); /* Gradiente para efecto brillante */
+    }
+
+    /* Estilo para la barra de desplazamiento (scrollbar) */
+    main::-webkit-scrollbar {
+      width: 12px; /* Ancho de la barra de desplazamiento */
+      height: 12px; /* Altura de la barra de desplazamiento */
+    }
+
+    main::-webkit-scrollbar-track {
+      background: #202123; /* Color de fondo de la pista de desplazamiento */
+      border-radius: 10px; /* Bordes redondeados */
+    }
+
+    main::-webkit-scrollbar-thumb {
+      background: linear-gradient(
+        45deg,
+        #202123,
+        #202123
+      ); /* Color con gradiente para la barra */
+      border-radius: 10px; /* Bordes redondeados */
+      border: 3px solid #202123; /* Espacio entre la barra y la pista */
+    }
+
+    main::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(
+        45deg,
+        #202123,
+        #202123
+      ); /* Color con gradiente más claro en hover */
+    }
+
+    main::-webkit-scrollbar-corner {
+      background: #202123; /* Color del espacio donde se encuentran las barras horizontal y vertical */
+    }
+
+    small {
+      font-size: 10px;
+      color: #ccc;
+      position: fixed;
+
+      margin: auto;
+      width: 400px;
+    }
+  </style>
+  <script type="module">
+    import { CreateWebWorkerMLCEngine  } from "https://esm.run/@mlc-ai/web-llm";
+
+    const $ = (el) => document.querySelector(el);
+    const $form = $("form");
+    const $input = $("input");
+    const $template = $("#message-template");
+    const $messages = $("ul");
+    const $container = $("main");
+    const $button = $("button");
+    const $info = $("small");
+
+    let messages = []
+    const SELECTED_MODEL = "Qwen2-1.5B-Instruct-q4f16_1-MLC";
+
+    const engine = await CreateWebWorkerMLCEngine(
+     new Worker('/worker.js', {type: 'module'}),
+     SELECTED_MODEL, {
+      initProgressCallback: (info) => {
+        $info.textContent = `${info.text}%`;
+        if (info.progress == 1) {
+            $button.removeAttribute('disabled');
+
+        }
+
+      },
+    });
+
+    $form.addEventListener("submit", async(event) => {
+      event.preventDefault();
+      const menssageText = $input.value.trim();
+
+      if (menssageText != "") {
+        // añadimos el mensaje al DOM
+        $input.value = "";
+      }
+
+      addMenssage(menssageText, "user");
+      $button.setAttribute("disabled", '');
+
+      const userMessage = {
+        role: 'user',
+        content: menssageText
+      }
+      messages.push(userMessage)
+
+      const chucks = await engine.chat.completions.create({
+        messages,
+        stream: true
+      })
+
+      
+      let reply = ""
+
+     const $botMenssage =  addMenssage("", 'bot')
+      
+      for await (const chunk of chucks) {
+        const [choice] = chunk.choices
+        const content = choice?.delta?.content ?? ""
+        reply += content 
+        $botMenssage.textContent = reply
+      }
+
+    $button.removeAttribute("disabled");
+
+    messages.push({
+      role: 'assistant',
+      content: reply
+    })
+    });
+
+    function addMenssage(text, sender) {
+      const clonedTemplate = $template.content.cloneNode(true);
+      const $newMessage = clonedTemplate.querySelector(".message");
+      const $who = $newMessage.querySelector("span");
+      const $text = $newMessage.querySelector("p");
+
+      $text.textContent = text;
+      $who.textContent = sender == "bot" ? "Meli" : "Tú";
+      $newMessage.classList.add(sender);
+
+      $messages.appendChild($newMessage);
+      $container.scrollTop = $container.scrollHeight;
+
+      return $text
+    }
+  </script>
+  <body>
+    <main>
+      <ul></ul>
+    </main>
+
+    <small></small>
+
+    <form>
+      <input placeholder="Escribe tu mensaje aquí..." />
+      <button disabled>Enviar</button>
+    </form>
+   
+    <template id="message-template">
+      <li class="message">
+        <span></span>
+        <p></p>
+      </li>
+    </template>
+  </body>
+</html>
